@@ -1,4 +1,5 @@
-﻿using DnsWebApi.Models;
+﻿using DnsWebApi.Exceptions;
+using DnsWebApi.Models;
 using DnsWebApi.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
@@ -8,29 +9,20 @@ namespace DnsWebApi.Controllers
     [Route("note")]
     public class NoteController : ControllerBase
     {
-        private INoteService productService;
+        private INoteService noteService;
 
-        public NoteController(IProductService productService)
+        public NoteController(INoteService noteService)
         {
-            this.productService = productService;
-        }
-
-        [HttpGet]
-        [Route("details/{id}")]
-        public async Task<ActionResult> Details(int id)
-        {
-            var result = await productService.GetById(id);
-
-            return Ok(result);
+            this.noteService = noteService;
         }
 
         [HttpPost]
         [Route("create")]
-        public async Task<ActionResult> Create(Product product)
+        public async Task<ActionResult> Create(Note note)
         {
             try
             {
-                var result = await productService.Create(product);
+                var result = await noteService.Create(note);
 
                 return Ok(result);
             }
@@ -42,11 +34,11 @@ namespace DnsWebApi.Controllers
 
         [HttpPost]
         [Route("edit/{id}")]
-        public async Task<ActionResult> Edit(int id, Product product)
+        public async Task<ActionResult> Edit(int id, Note note)
         {
             try
             {
-                var result = await productService.Edit(id, product);
+                var result = await noteService.Edit(id, note);
 
                 return Ok(result);
             }
@@ -66,7 +58,7 @@ namespace DnsWebApi.Controllers
         {
             try
             {
-                var result = await productService.Delete(id);
+                var result = await noteService.Delete(id);
 
                 return Ok(result);
             }
@@ -77,10 +69,10 @@ namespace DnsWebApi.Controllers
         }
 
         [HttpGet]
-        [Route("all-products")]
+        [Route("all-notes")]
         public ActionResult GetAll()
         {
-            return Ok(productService.GetAll());
+            return Ok(noteService.GetAll());
         }
 
 

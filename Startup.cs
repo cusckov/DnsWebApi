@@ -1,3 +1,8 @@
+using DnsWebApi.Services;
+using DnsWebApi.Services.DatabaseStrategy;
+using DnsWebApi.Services.DatabaseStrategy.Interfaces;
+using DnsWebApi.Services.DatabaseStrategy.Strategies;
+using DnsWebApi.Services.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -29,6 +34,10 @@ namespace DnsWebApi
         /// </summary>
         public void ConfigureServices(IServiceCollection services)
         {
+            services.AddScoped<INoteService, NoteService>();
+            services.AddScoped<IDatabaseStrategy, MSSQLDatabase>();
+            services.AddScoped<DatabaseStrategyContext>();
+
             services.AddControllers();
 
             services.AddSwaggerGen(swagger =>
@@ -39,7 +48,7 @@ namespace DnsWebApi
                     Version = "v1",
                     Title = "WebApi App for Manage Notes (Dns's test work)",
                     Description = "Тестовое задание для \"Dns\""
-                });s
+                });
             });
         }
 

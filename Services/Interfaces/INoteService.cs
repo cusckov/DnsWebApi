@@ -1,6 +1,12 @@
-﻿namespace DnsWebApi.Services.Interfaces
+﻿using DnsWebApi.Models;
+
+namespace DnsWebApi.Services.Interfaces
 {
-    internal interface INoteService
+    public interface INoteService
     {
+        Task<Note> Create(Note note);
+        Task<Note> Delete(int id);
+        Task<Note> Edit(int id, Note note);
+        IEnumerable<Note> GetAll();
     }
 }
