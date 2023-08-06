@@ -35,7 +35,7 @@ namespace DnsWebApi
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddScoped<INoteService, NoteService>();
-            services.AddScoped<IDatabaseStrategy, MSSQLDatabase>();
+            services.AddScoped<IDatabaseStrategy, MsSqlDatabase>();
             services.AddScoped<DatabaseStrategyContext>();
 
             services.AddControllers();

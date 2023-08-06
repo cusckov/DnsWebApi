@@ -4,9 +4,9 @@ namespace DnsWebApi.Services.Interfaces
 {
     public interface INoteService
     {
-        Task<Note> Create(Note note);
-        Task<Note> Delete(int id);
-        Task<Note> Edit(int id, Note note);
+        Task<bool> Create(Note note);
+        Task<bool> Delete(int id);
+        Task<bool> Edit(int id, Note note);
         IEnumerable<Note> GetAll();
     }
 }

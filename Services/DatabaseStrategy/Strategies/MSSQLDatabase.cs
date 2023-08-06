@@ -5,27 +5,27 @@ using System.Data.Common;
 
 namespace DnsWebApi.Services.DatabaseStrategy.Strategies
 {
-    public class MSSQLDatabase : IDatabaseStrategy
+    public class MsSqlDatabase : IDatabaseStrategy
     {
         private readonly string connectionString;
-        private readonly ILogger<MSSQLDatabase> logger;
+        private readonly ILogger<MsSqlDatabase> logger;
 
-        public string Name => nameof(MSSQLDatabase);
+        public string Name => nameof(MsSqlDatabase);
 
-        public MSSQLDatabase(IConfiguration configuration,
-            ILogger<MSSQLDatabase> logger)
+        public MsSqlDatabase(IConfiguration configuration,
+            ILogger<MsSqlDatabase> logger)
         {
             connectionString = configuration.GetConnectionString("DefaultConnection");
             this.logger = logger;
         }
 
-        public DbConnection GetDbConnection()
+        public async Task<DbConnection> GetDbConnection()
         {
-            DbConnection connection = new SqlConnection(connectionString);
+            var connection = new SqlConnection(connectionString);
 
             try
             {
-                connection.Open();
+                await connection.OpenAsync();
 
                 if (connection.State == ConnectionState.Broken || connection.State == ConnectionState.Closed)
                     throw new Exception("Подключение повреждено или закрыто.");
@@ -42,105 +42,277 @@ namespace DnsWebApi.Services.DatabaseStrategy.Strategies
 
         }
 
-        public bool ExecuteSqlCommand(string sqlText,
-            IDictionary<string, object> sqlParams,
-            out string errorMessage)
+        public async Task<SqlResult<bool>> ExecuteSqlCommand(string sqlText,
+            IDictionary<string, object> sqlParams)
         {
-            using (DbConnection connection = GetDbConnection())
+            try
             {
-                using (DbTransaction dbTransaction = connection.BeginTransaction(IsolationLevel.ReadCommitted))
+                using (var connection = await GetDbConnection())
                 {
-                    try
+                    using (var dbTransaction = await connection.BeginTransactionAsync(IsolationLevel.ReadCommitted))
                     {
-                        DbCommand command = connection.CreateCommand();
-
-                        command.Transaction = dbTransaction;
-
-                        command.CommandText = sqlText;
-
-                        if (sqlParams != null)
+                        try
                         {
-                            foreach (string key in sqlParams.Keys)
+                            DbCommand command = connection.CreateCommand();
+
+                            command.Transaction = dbTransaction;
+
+                            command.CommandText = sqlText;
+
+                            if (sqlParams != null)
                             {
-                                DbParameter parameter = command.CreateParameter();
-                                parameter.ParameterName = key;
-                                parameter.Value = sqlParams[key];
-                                command.Parameters.Add(parameter);
+                                foreach (string key in sqlParams.Keys)
+                                {
+                                    var parameter = command.CreateParameter();
+                                    parameter.ParameterName = key;
+                                    parameter.Value = sqlParams[key];
+                                    command.Parameters.Add(parameter);
+                                }
                             }
+
+                            await command.ExecuteNonQueryAsync();
+
+                            await dbTransaction.CommitAsync();
+
+                            return new SqlResult<bool>
+                            {
+                                Result = true,
+                                ErrorMessage = null
+                            };
                         }
+                        catch (Exception ex)
+                        {
+                            await dbTransaction.RollbackAsync();
 
-                        command.ExecuteNonQuery();
-
-                        dbTransaction.Commit();
-
-                        errorMessage = "";
-
-                        return true;
-                    }
-                    catch (Exception ex)
-                    {
-                        dbTransaction.Rollback();
-
-                        errorMessage = ex.ToString();
-
-                        return false;
+                            return new SqlResult<bool>
+                            {
+                                Result = false,
+                                ErrorMessage = ex.ToString()
+                            };
+                        }
                     }
                 }
             }
+            catch (Exception ex)
+            {
+                return new SqlResult<bool>
+                {
+                    Result = false,
+                    ErrorMessage = ex.ToString()
+                };
+            }
         }
 
-        public IDictionary<int, IDictionary<string, object>> SelectData(string sqlText,
-            IDictionary<string, object> sqlParams,
-            out string errorMessage)
+        public async Task<SqlResult<bool>> ExecuteProcedure(string sqlText,
+            IDictionary<string, object> sqlParams)
+        {
+            try
+            {
+                using (var connection = await GetDbConnection())
+                {
+                    using (var dbTransaction = await connection.BeginTransactionAsync(IsolationLevel.ReadCommitted))
+                    {
+                        try
+                        {
+                            DbCommand command = connection.CreateCommand();
+
+                            command.Transaction = dbTransaction;
+                            command.CommandType = CommandType.StoredProcedure;
+                            command.CommandText = sqlText;
+
+                            if (sqlParams != null)
+                            {
+                                foreach (string key in sqlParams.Keys)
+                                {
+                                    var parameter = command.CreateParameter();
+                                    parameter.ParameterName = key;
+                                    parameter.Value = sqlParams[key];
+                                    command.Parameters.Add(parameter);
+                                }
+                            }
+
+                            await command.ExecuteNonQueryAsync();
+
+                            await dbTransaction.CommitAsync();
+
+                            return new SqlResult<bool>
+                            {
+                                Result = true,
+                                ErrorMessage = null
+                            };
+                        }
+                        catch (Exception ex)
+                        {
+                            await dbTransaction.RollbackAsync();
+
+                            return new SqlResult<bool>
+                            {
+                                Result = false,
+                                ErrorMessage = ex.ToString()
+                            };
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                return new SqlResult<bool>
+                {
+                    Result = false,
+                    ErrorMessage = ex.ToString()
+                };
+            }
+        }
+
+        public async Task<SqlResult<IDictionary<int, IDictionary<string, object>>>> SelectDataFromProcedure(string sqlText,
+            IDictionary<string, object> sqlParams)
         {
             Dictionary<int, IDictionary<string, object>> dictionary1 =
                 new Dictionary<int, IDictionary<string, object>>();
-
-            using (DbConnection connection = GetDbConnection())
+            try
             {
-                using (DbTransaction dbTransaction = connection.BeginTransaction(IsolationLevel.ReadCommitted))
+                using (var connection = await GetDbConnection())
                 {
-                    try
+                    using (var dbTransaction = await connection.BeginTransactionAsync(IsolationLevel.ReadCommitted))
                     {
-                        DbCommand command = connection.CreateCommand();
-                        command.Transaction = dbTransaction;
-                        command.CommandText = sqlText;
-                        if (sqlParams != null)
+                        try
                         {
-                            foreach (string key in (IEnumerable<string>)sqlParams.Keys)
+                            var command = connection.CreateCommand();
+                            command.Transaction = dbTransaction;
+                            command.CommandText = sqlText;
+                            if (sqlParams != null)
                             {
-                                DbParameter parameter = command.CreateParameter();
-                                parameter.ParameterName = key;
-                                parameter.Value = sqlParams[key];
-                                command.Parameters.Add(parameter);
-                            }
-                        }
-                        using (DbDataReader dbDataReader = command.ExecuteReader())
-                        {
-                            int num = 0;
-                            while (dbDataReader.HasRows)
-                            {
-                                while (dbDataReader.Read())
+
+                                foreach (string key in sqlParams.Keys)
                                 {
-                                    Dictionary<string, object> dictionary2 = new Dictionary<string, object>();
-                                    for (int ordinal = 0; ordinal < dbDataReader.FieldCount; ++ordinal)
-                                        dictionary2.Add(dbDataReader.GetName(ordinal), dbDataReader[ordinal]);
-                                    dictionary1.Add(num++, dictionary2);
+                                    DbParameter parameter = command.CreateParameter();
+                                    parameter.ParameterName = key;
+                                    parameter.Value = sqlParams[key];
+                                    command.Parameters.Add(parameter);
                                 }
-                                dbDataReader.NextResult();
                             }
-                            dbDataReader.Close();
+                            using (DbDataReader dbDataReader = await command.ExecuteReaderAsync())
+                            {
+                                int num = 0;
+
+                                while (dbDataReader.HasRows)
+                                {
+                                    while (await dbDataReader.ReadAsync())
+                                    {
+                                        Dictionary<string, object> dictionary2 = new Dictionary<string, object>();
+                                        for (int ordinal = 0; ordinal < dbDataReader.FieldCount; ++ordinal)
+                                            dictionary2.Add(dbDataReader.GetName(ordinal), dbDataReader[ordinal]);
+                                        dictionary1.Add(num++, dictionary2);
+                                    }
+
+                                    await dbDataReader.NextResultAsync();
+                                }
+                                dbDataReader.Close();
+                            }
+                            await dbTransaction.CommitAsync();
+
+                            return new SqlResult<IDictionary<int, IDictionary<string, object>>>
+                            {
+                                Result = dictionary1,
+                                ErrorMessage = null
+                            };
                         }
-                        dbTransaction.Commit();
-                        errorMessage = "";
-                    }
-                    catch (Exception ex)
-                    {
-                        dbTransaction.Rollback();
-                        errorMessage = ex.ToString();
+                        catch (Exception ex)
+                        {
+                            await dbTransaction.RollbackAsync();
+
+                            return new SqlResult<IDictionary<int, IDictionary<string, object>>>
+                            {
+                                Result = dictionary1,
+                                ErrorMessage = ex.ToString()
+                            };
+                        }
                     }
                 }
-                return dictionary1;
+            }
+            catch (Exception ex)
+            {
+                return new SqlResult<IDictionary<int, IDictionary<string, object>>>
+                {
+                    Result = dictionary1,
+                    ErrorMessage = ex.ToString()
+                };
+            }
+        }
+
+        public async Task<SqlResult<IDictionary<int, IDictionary<string, object>>>> SelectData(string sqlText,
+            IDictionary<string, object> sqlParams)
+        {
+            Dictionary<int, IDictionary<string, object>> dictionary1 =
+                new Dictionary<int, IDictionary<string, object>>();
+            try
+            {
+                using (var connection = await GetDbConnection())
+                {
+                    using (var dbTransaction = await connection.BeginTransactionAsync(IsolationLevel.ReadCommitted))
+                    {
+                        try
+                        {
+                            var command = connection.CreateCommand();
+                            command.Transaction = dbTransaction;
+                            command.CommandText = sqlText;
+                            if (sqlParams != null)
+                            {
+
+                                foreach (string key in sqlParams.Keys)
+                                {
+                                    DbParameter parameter = command.CreateParameter();
+                                    parameter.ParameterName = key;
+                                    parameter.Value = sqlParams[key];
+                                    command.Parameters.Add(parameter);
+                                }
+                            }
+                            using (DbDataReader dbDataReader = await command.ExecuteReaderAsync())
+                            {
+                                int num = 0;
+
+                                while (dbDataReader.HasRows)
+                                {
+                                    while (await dbDataReader.ReadAsync())
+                                    {
+                                        Dictionary<string, object> dictionary2 = new Dictionary<string, object>();
+                                        for (int ordinal = 0; ordinal < dbDataReader.FieldCount; ++ordinal)
+                                            dictionary2.Add(dbDataReader.GetName(ordinal), dbDataReader[ordinal]);
+                                        dictionary1.Add(num++, dictionary2);
+                                    }
+
+                                    await dbDataReader.NextResultAsync();
+                                }
+                                dbDataReader.Close();
+                            }
+                            await dbTransaction.CommitAsync();
+
+                            return new SqlResult<IDictionary<int, IDictionary<string, object>>>
+                            {
+                                Result = dictionary1,
+                                ErrorMessage = null
+                            };
+                        }
+                        catch (Exception ex)
+                        {
+                            await dbTransaction.RollbackAsync();
+
+                            return new SqlResult<IDictionary<int, IDictionary<string, object>>>
+                            {
+                                Result = dictionary1,
+                                ErrorMessage = ex.ToString()
+                            };
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                return new SqlResult<IDictionary<int, IDictionary<string, object>>>
+                {
+                    Result = dictionary1,
+                    ErrorMessage = ex.ToString()
+                };
             }
         }
     }
