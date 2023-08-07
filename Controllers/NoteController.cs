@@ -38,11 +38,11 @@ namespace DnsWebApi.Controllers
 
         [HttpPost]
         [Route("edit/{id}")]
-        public async Task<ActionResult> Edit(int id, Note note)
+        public async Task<ActionResult> Edit(int id, string note)
         {
             try
             {
-                var result = await noteService.Edit(id, note);
+                var result = await noteService.Update(id, note);
 
                 return Ok(result);
             }
@@ -79,6 +79,11 @@ namespace DnsWebApi.Controllers
             return Ok(noteService.GetAll());
         }
 
-
+        [HttpGet]
+        [Route("unread-notes")]
+        public ActionResult GetUndread()
+        {
+            return Ok(noteService.GetUnread());
+        }
     }
 }

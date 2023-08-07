@@ -164,6 +164,72 @@ namespace DnsWebApi.Services.DatabaseStrategy.Strategies
             }
         }
 
+        public async Task<SqlResult<object>> ExecuteProcedureWithReturnParameter(string sqlText,
+            IDictionary<string, object> sqlParams)
+        {
+            try
+            {
+                using (var connection = await GetDbConnection())
+                {
+                    using (var dbTransaction = await connection.BeginTransactionAsync(IsolationLevel.ReadCommitted))
+                    {
+                        try
+                        {
+                            DbCommand command = connection.CreateCommand();
+
+                            command.Transaction = dbTransaction;
+                            command.CommandType = CommandType.StoredProcedure;
+                            command.CommandText = sqlText;
+
+                            if (sqlParams != null)
+                            {
+                                foreach (string key in sqlParams.Keys)
+                                {
+                                    var parameter = command.CreateParameter();
+                                    parameter.ParameterName = key;
+                                    parameter.Value = sqlParams[key];
+                                    command.Parameters.Add(parameter);
+                                }
+                            }
+
+                            var returnParameter = command.CreateParameter();
+                            returnParameter.ParameterName = "@Result";
+                            returnParameter.Direction = ParameterDirection.ReturnValue;
+                            command.Parameters.Add(returnParameter);
+
+                            await command.ExecuteNonQueryAsync();
+
+                            await dbTransaction.CommitAsync();
+
+                            return new SqlResult<object>
+                            {
+                                Result = returnParameter.Value,
+                                ErrorMessage = null
+                            };
+                        }
+                        catch (Exception ex)
+                        {
+                            await dbTransaction.RollbackAsync();
+
+                            return new SqlResult<object>
+                            {
+                                Result = false,
+                                ErrorMessage = ex.ToString()
+                            };
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                return new SqlResult<object>
+                {
+                    Result = false,
+                    ErrorMessage = ex.ToString()
+                };
+            }
+        }
+
         public async Task<SqlResult<IDictionary<int, IDictionary<string, object>>>> SelectDataFromProcedure(string sqlText,
             IDictionary<string, object> sqlParams)
         {
@@ -179,6 +245,7 @@ namespace DnsWebApi.Services.DatabaseStrategy.Strategies
                         {
                             var command = connection.CreateCommand();
                             command.Transaction = dbTransaction;
+                            command.CommandType = CommandType.StoredProcedure;
                             command.CommandText = sqlText;
                             if (sqlParams != null)
                             {

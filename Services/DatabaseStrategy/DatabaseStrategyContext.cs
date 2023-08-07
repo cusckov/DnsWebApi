@@ -1,5 +1,4 @@
 ﻿using DnsWebApi.Services.DatabaseStrategy.Interfaces;
-using Microsoft.AspNetCore.Server.IIS.Core;
 
 namespace DnsWebApi.Services.DatabaseStrategy
 {
@@ -16,8 +15,8 @@ namespace DnsWebApi.Services.DatabaseStrategy
 
         public IDatabaseStrategy GetStrategy()
         {
-            if(dbStrategies is null || !dbStrategies.Any()) 
-                throw new ArgumentNullException(nameof(dbStrategies));
+            if (dbStrategies is null)
+                throw new NullReferenceException(nameof(dbStrategies));
 
             return dbStrategies.SingleOrDefault(item => item.Name == configuration["DbName"]);
         }
