@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace DnsWebApi.Controllers
 {
     [ApiController]
-    [Route("note")]
+    [Route("notes")]
     public class NoteController : ControllerBase
     {
         private INoteService noteService;
@@ -81,7 +81,7 @@ namespace DnsWebApi.Controllers
 
         [HttpGet]
         [Route("unread-notes")]
-        public ActionResult GetUndread()
+        public ActionResult GetUnread()
         {
             return Ok(noteService.GetUnread());
         }
